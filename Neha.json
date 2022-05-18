@@ -86,7 +86,7 @@
     "AVDSubnetName": "AVD-Subnet",
     "ApplicationSubnetName": "Application-Subnet",
     "DatabaseSubnetName": "Database-Subnet",
-    "bootdiagstgaccName": "[concat('bootdiagstgacc', uniqueString(resourceGroup().id))]",
+    "bootdiagstgaccName": "[concat('boot', uniqueString(resourceGroup().id))]",
     "ADCServerImagePublisher": "MicrosoftWindowsServer",
     "ADCServerImageOffer": "WindowsServer",
     "ADCServerOSDiskName": "ADCServerOSDisk",

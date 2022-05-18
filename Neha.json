@@ -1,0 +1,267 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "bootdiagstgaccType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
+    },
+    "ADCServerName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ADCServerAdminUserName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ADCServerAdminPassword": {
+      "type": "securestring"
+    },
+    "ADCServerWindowsOSVersion": {
+      "type": "string",
+      "defaultValue": "2016-Datacenter",
+      "allowedValues": [
+        "2012-R2-Datacenter",
+        "2016-Datacenter",
+        "2019-Datacenter"
+      ]
+    },
+    "HubVnetName": {
+      "type": "string",
+      "defaultValue": "Hub-Vnet"
+    },
+    "SpokeVnetName": {
+      "type": "string",
+      "defaultValue": "Spoke-Vnet"
+    },
+    "HubVnetRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16"
+    },
+    "SpokeVnetRange": {
+      "type": "string",
+      "defaultValue": "172.0.0.0/16"
+    },
+    "LANSubnetRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/26"
+    },
+    "WANSubnetRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/26"
+    },
+    "ProtectedSubnetRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/26"
+    },
+    "ManagementSubnetRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/26"
+    },
+    "AVDSubnetRange": {
+      "type": "string",
+      "defaultValue": "172.0.0.0/26"
+    },
+    "ApplicationSubnetRange": {
+      "type": "string",
+      "defaultValue": "172.0.0.0/26"
+    },
+    "DatabaseSubnetRange": {
+      "type": "string",
+      "defaultValue": "172.0.0.0/26"
+    }
+  },
+  "variables": {
+    "LANSubnetName": "LAN-Subnet",
+    "ProtectedSubnetName": "Protected-subnet",
+    "WANSubnetName": "WAN-Subnet",
+    "ManagementSubnetName": "Management-Subnet",
+    "AVDSubnetName": "AVD-Subnet",
+    "ApplicationSubnetName": "Application-Subnet",
+    "DatabaseSubnetName": "Database-Subnet",
+    "bootdiagstgaccName": "[concat('bootdiagstgacc', uniqueString(resourceGroup().id))]",
+    "ADCServerImagePublisher": "MicrosoftWindowsServer",
+    "ADCServerImageOffer": "WindowsServer",
+    "ADCServerOSDiskName": "ADCServerOSDisk",
+    "ADCServerVmSize": "Standard_D2_v2",
+    "ADCServerVnetID": "[resourceId('Microsoft.Network/virtualNetworks/', parameters('HubVnetName'))]",
+    "ADCServerSubnetRef": "[concat(variables('ADCServerVnetID'), '/subnets/', variables('ManagementSubnetName'))]",
+    "ADCServerStorageAccountContainerName": "vhds",
+    "ADCServerNicName": "[concat(parameters('ADCServerName'), 'NetworkInterface')]"
+  },
+  "resources": [
+    {
+      "name": "[parameters('HubVnetName')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "HubVnetName"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('HubVnetRange')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('LANSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('LANSubnetRange')]"
+            }
+          },
+           {
+            "name": "[variables('WANSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('WANSubnetRange')]"
+            }
+          },
+          {
+            "name": "[variables('ProtectedSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('ProtectedSubnetRange')]"
+            }
+          },
+            {
+            "name": "[variables('ManagementSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('ManagementSubnetRange')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('SpokeVnetName')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "SpokeVnetName"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('SpokeVnetRange')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('AVDSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('AVDSubnetRange')]"
+            }
+          },
+           {
+            "name": "[variables('ApplicationSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('ApplicationSubnetRange')]"
+            }
+          },
+          {
+            "name": "[variables('DatabaseSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('DatabaseSubnetRange')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('bootdiagstgaccName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[parameters('bootdiagstgaccType')]"
+      },
+      "dependsOn": [],
+      "tags": {
+        "displayName": "bootdiagstgacc"
+      },
+      "kind": "Storage"
+    },
+    {
+      "name": "[variables('ADCServerNicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('HubVnetName'))]"
+      ],
+      "tags": {
+        "displayName": "ADCServerNic"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('ADCServerSubnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('ADCServerName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('bootdiagstgaccName'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('ADCServerNicName'))]"
+      ],
+      "tags": {
+        "displayName": "ADCServer"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('ADCServerVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('ADCServerName')]",
+          "adminUsername": "[parameters('ADCServerAdminUsername')]",
+          "adminPassword": "[parameters('ADCServerAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('ADCServerImagePublisher')]",
+            "offer": "[variables('ADCServerImageOffer')]",
+            "sku": "[parameters('ADCServerWindowsOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "ADCServerOSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('bootdiagstgaccName')), '2016-01-01').primaryEndpoints.blob, variables('ADCServerStorageAccountContainerName'), '/', variables('ADCServerOSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('ADCServerNicName'))]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}
